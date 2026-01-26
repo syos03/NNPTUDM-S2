@@ -1,3 +1,1 @@
-# NNPTUD-S2
-Lớp NNPTUD-Sáng t2
-Mỗi ngày 1 nhánh
+Tào Gia Hân - 2280600880
