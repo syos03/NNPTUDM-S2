@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
-let {ConvertTitleToSlug} = require('../utils/titleHandler')
-let {getMaxID} = require('../utils/IdHandler')
+let { ConvertTitleToSlug } = require('../utils/titleHandler')
+let { getMaxID } = require('../utils/IdHandler')
 let data = [
   {
     "id": 1,
@@ -1167,10 +1167,41 @@ let data = [
 router.get('/', function (req, res, next) {
   let queries = req.query;
   let titleQ = queries.title ? queries.title : '';
-  let minPrice = queries.minPrice ? queries.minPrice : 0;
-  let maxPrice = queries.maxPrice ? queries.maxPrice : 1E6;
-  let page = queries.page ? queries.page : 1;
-  let limit = queries.limit ? queries.limit : 10;
+
+  // Parse và validate minPrice, maxPrice
+  let minPrice = queries.minPrice ? parseFloat(queries.minPrice) : 0;
+  let maxPrice = queries.maxPrice ? parseFloat(queries.maxPrice) : 1E6;
+
+  // Kiểm tra minPrice và maxPrice có phải là số hợp lệ không
+  if (isNaN(minPrice) || isNaN(maxPrice)) {
+    return res.status(400).send({
+      "message": "minPrice và maxPrice phải là số hợp lệ"
+    });
+  }
+
+  // Kiểm tra maxPrice >= minPrice
+  if (maxPrice < minPrice) {
+    return res.status(400).send({
+      "message": "maxPrice phải lớn hơn hoặc bằng minPrice"
+    });
+  }
+
+  // Parse và validate page
+  let page = queries.page ? parseInt(queries.page) : 1;
+  if (isNaN(page) || page <= 0 || !Number.isInteger(page)) {
+    return res.status(400).send({
+      "message": "page phải là số nguyên dương"
+    });
+  }
+
+  // Parse và validate limit
+  let limit = queries.limit ? parseInt(queries.limit) : 10;
+  if (isNaN(limit) || limit <= 0 || !Number.isInteger(limit)) {
+    return res.status(400).send({
+      "message": "limit phải là số nguyên dương"
+    });
+  }
+
   console.log(queries);
   let result = data.filter(
     function (e) {
@@ -1181,6 +1212,23 @@ router.get('/', function (req, res, next) {
   result = result.splice(limit * (page - 1), limit)
   res.send(result);
 });
+//get by Slug - Đặt trước /:id để không bị conflict
+router.get('/slug/:slug', function (req, res, next) {
+  let slug = req.params.slug;
+  let result = data.find(
+    function (e) {
+      return e.slug === slug && (!e.isDeleted);
+    }
+  )
+  if (result) {
+    res.send(result);
+  } else {
+    res.status(404).send({
+      "message": "slug not found"
+    });
+  }
+});
+
 //get by ID
 router.get('/:id', function (req, res, next) {
   let result = data.find(
@@ -1199,12 +1247,45 @@ router.get('/:id', function (req, res, next) {
 
 
 router.post('/', function (req, res, next) {
+  // Validate các trường bắt buộc
+  let errors = [];
+
+  if (!req.body.title || req.body.title.trim() === '') {
+    errors.push("title không được để trống");
+  }
+
+  if (req.body.price === undefined || req.body.price === null || req.body.price === '') {
+    errors.push("price không được để trống");
+  } else if (isNaN(Number(req.body.price))) {
+    errors.push("price phải là số");
+  }
+
+  if (!req.body.description || req.body.description.trim() === '') {
+    errors.push("description không được để trống");
+  }
+
+  if (!req.body.category) {
+    errors.push("category không được để trống");
+  }
+
+  if (!req.body.images || !Array.isArray(req.body.images) || req.body.images.length === 0) {
+    errors.push("images không được để trống");
+  }
+
+  // Nếu có lỗi, trả về danh sách lỗi
+  if (errors.length > 0) {
+    return res.status(400).send({
+      "message": "Validation failed",
+      "errors": errors
+    });
+  }
+
   let newObj = {
     id: (getMaxID(data) + 1) + '',
-    title: req.body.title,
-    slug: ConvertTitleToSlug(req.body.title),
-    price: req.body.price,
-    description: req.body.description,
+    title: req.body.title.trim(),
+    slug: ConvertTitleToSlug(req.body.title.trim()),
+    price: Number(req.body.price),
+    description: req.body.description.trim(),
     category: req.body.category,
     images: req.body.images,
     creationAt: new Date(Date.now()),
