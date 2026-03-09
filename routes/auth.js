@@ -6,6 +6,7 @@ let jwt = require('jsonwebtoken')
 let { checkLogin } = require('../utils/authHandler')
 
 
+// POST /auth/register
 router.post('/register', async function (req, res, next) {
   let newUser = await userController.CreateAnUser(
     req.body.username,
@@ -15,6 +16,8 @@ router.post('/register', async function (req, res, next) {
   )
   res.send(newUser)
 });
+
+// POST /auth/login
 router.post('/login', async function (req, res, next) {
   let { username, password } = req.body;
   let getUser = await userController.FindByUsername(username);
@@ -41,11 +44,14 @@ router.post('/login', async function (req, res, next) {
     })
   }
 });
-//localhost:3000
+
+// GET /auth/me – lấy thông tin user đang đăng nhập
 router.get('/me', checkLogin, async function (req, res, next) {
   let user = await userController.FindByID(req.userId);
   res.send(user)
 });
+
+// POST /auth/logout
 router.post('/logout', checkLogin, function (req, res, next) {
   res.cookie('token', null, {
     maxAge: 0,
@@ -54,8 +60,34 @@ router.post('/logout', checkLogin, function (req, res, next) {
   res.send("logout")
 })
 
+// POST /auth/change-password – đổi mật khẩu (yêu cầu đăng nhập)
+router.post('/change-password', checkLogin, async function (req, res, next) {
+  try {
+    let { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) {
+      return res.status(400).send({ message: "Vui long cung cap oldPassword va newPassword" });
+    }
+
+    // Lấy user kèm password (FindByID dùng populate nên không lấy password – query thẳng)
+    let userModel = require('../schemas/users');
+    let user = await userModel.findOne({ _id: req.userId, isDeleted: false });
+    if (!user) {
+      return res.status(404).send({ message: "Nguoi dung khong ton tai" });
+    }
+
+    // Kiểm tra mật khẩu cũ
+    let isMatch = bcrypt.compareSync(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).send({ message: "Mat khau cu khong chinh xac" });
+    }
+
+    // Đổi mật khẩu mới
+    await userController.changePassword(req.userId, newPassword);
+    res.send({ message: "Doi mat khau thanh cong" });
+  } catch (error) {
+    res.status(500).send({ message: error.message });
+  }
+});
+
 
 module.exports = router;
-
-
-//mongodb
