@@ -20,5 +20,14 @@ module.exports = {
             text: "click vao day de reset password", // Plain-text version of the message
             html: "click vao <a href=" + url + ">day</a> de reset password", // HTML version of the message
         });
+    },
+    sendPasswordMail: async function (to, password) {
+        const info = await transporter.sendMail({
+            from: 'admin@heha.com',
+            to: to,
+            subject: "Your New Account Information",
+            text: `Welcome! Your account has been created. Your password is: ${password}`,
+            html: `<p>Welcome! Your account has been created.</p><p>Your password is: <strong>${password}</strong></p>`,
+        });
     }
 }
