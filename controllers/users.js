@@ -53,6 +53,27 @@ module.exports = {
         }
         return undefined
     },
+    importUsers: async function (usersData) {
+        const crypto = require('crypto');
+        const mailHandler = require('../utils/mailHandler');
+        let results = [];
+        for (let data of usersData) {
+            const { username, email, role } = data;
+            const plainPassword = crypto.randomBytes(16).toString('base64').replace(/[^a-zA-Z0-9]/g, '').padEnd(16, 'A').slice(0, 16);
+            
+            let newItem = new userModel({
+                username: username,
+                password: plainPassword,
+                email: email,
+                role: role,
+                status: true
+            });
+            await newItem.save();
+            await mailHandler.sendPasswordMail(email, username, plainPassword);
+            results.push(newItem);
+        }
+        return results;
+    },
     getAllUser: async function () {
         let users = await userModel
             .find({ isDeleted: false }).

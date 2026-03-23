@@ -30,6 +30,15 @@ router.get("/:id", checkLogin, checkRole("ADMIN", "MODERATOR"), async function (
   }
 });
 
+router.post("/import", async function (req, res, next) {
+  try {
+    let result = await userController.importUsers(req.body.users);
+    res.send({ message: "Import thành công", data: result });
+  } catch (err) {
+    res.status(400).send({ message: err.message });
+  }
+});
+
 router.post("/", userPostValidation, validateResult,
   async function (req, res, next) {
     let session = await mongoose.startSession();
